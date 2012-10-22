@@ -1,5 +1,4 @@
 require 'sinatra'
-require 'sinatra/json'
 require 'rubygems'
 require 'georuby-extras'
 require 'json'
