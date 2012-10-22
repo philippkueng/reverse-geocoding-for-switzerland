@@ -4,6 +4,10 @@ require 'rubygems'
 require 'georuby-extras'
 require 'json'
 
+configure :production do
+  require 'newrelic_rpm'
+end
+
 include GeoRuby::SimpleFeatures
 
 VEC200 = JSON.parse(IO.read('VEC200_Commune.geojson').encode('utf-8', replace: nil))['features']

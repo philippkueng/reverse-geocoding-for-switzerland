@@ -4,7 +4,8 @@ GEM
     GeoRuby (1.3.4)
     griffordson-georuby-extras (0.7.0)
       GeoRuby (>= 1.2.0)
-    json_pure (1.6.5)
+    json (1.7.5)
+    newrelic_rpm (3.5.0)
     rack (1.4.1)
     rack-protection (1.2.0)
       rack
@@ -19,5 +20,6 @@ PLATFORMS
 
 DEPENDENCIES
   griffordson-georuby-extras
-  json_pure
+  json
+  newrelic_rpm
   sinatra
