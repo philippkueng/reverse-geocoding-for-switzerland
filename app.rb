@@ -11,6 +11,8 @@ include GeoRuby::SimpleFeatures
 
 VEC200 = JSON.parse(IO.read('VEC200_Commune.geojson').encode('utf-8', replace: nil))['features']
 
+KANTON_ABK = ["ZH", "BE", "LU", "UR", "SZ", "OW", "NW", "GL", "ZG", "FR", "SO", "BS", "BL", "SH", "AR", "AI", "SG", "GR", "AG", "TG", "TI", "VD", "VS", "NE", "GE", "JU"]
+
 get '/' do
   "Welcome to the Reverse Geocoding for Swiss Municipalities."  
 end
@@ -41,7 +43,7 @@ get '/lat/:lat/long/:long' do
           
           return {
             :GEMNAME => feature['properties']['GEMNAME'],
-            :KANTONSNR => feature['properties']['KANTONSNR'],
+            :KANTON => KANTON_ABK[feature['properties']['KANTONSNR'].to_i - 1],
             :BEZIRKSNR => feature['properties']['BEZIRKSNR'],
             :GEMFLAECHE => feature['properties']['GEMFLAECHE']
           }.to_json

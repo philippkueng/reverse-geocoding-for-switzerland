@@ -15,7 +15,7 @@ Response
     # successful
     {
       "GEMNAME": "Schübelbach",
-      "KANTONSNR": 5,
+      "KANTON": "SZ",
       "BEZIRKSNR": 505,
       "GEMFLAECHE": 2901
     }
