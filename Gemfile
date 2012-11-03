@@ -1,7 +1,7 @@
 source 'https://rubygems.org'
 
 gem 'json'
-gem 'griffordson-georuby-extras'
+gem 'georuby'
 gem 'sinatra'
 gem 'newrelic_rpm'
 gem 'bson_ext'

@@ -1,7 +1,9 @@
 require 'sinatra'
 require 'rubygems'
-require 'georuby-extras'
+require 'geo_ruby'
 require 'json'
+require 'uri'
+require 'mongo'
 
 configure :production do
   require 'newrelic_rpm'
@@ -9,10 +11,20 @@ end
 
 include GeoRuby::SimpleFeatures
 
-VEC200 = JSON.parse(IO.read('VEC200_Commune.geojson').encode('utf-8', replace: nil))['features']
+
+# Connecting to MongoDB
+db = URI.parse(ENV['MONGOHQ_URL'] || 'mongodb://@localhost:27017/reversegeocodingforswitzerland')
+db_name = db.path.gsub(/^\//, '')
+db_connection = Mongo::Connection.new(db.host, db.port).db(db_name)
+db_connection.authenticate(db.user, db.password) unless (db.user.nil? || db.user.nil?)
+
+municipalities = db_connection.collection('municipalities')
+
 
 KANTON_ABK = ["ZH", "BE", "LU", "UR", "SZ", "OW", "NW", "GL", "ZG", "FR", "SO", "BS", "BL", "SH", "AR", "AI", "SG", "GR", "AG", "TG", "TI", "VD", "VS", "NE", "GE", "JU"]
 
+
+# Routes
 get '/' do
   "Welcome to the Reverse Geocoding for Swiss Municipalities."  
 end
@@ -32,28 +44,35 @@ get '/lat/:lat/long/:long' do
 
     y = 2_000_000 + 600072.37 + 211455.93 * lambda_helper - (10938.51 * lambda_helper * phi_helper) - (0.36 * lambda_helper * phi_helper**2) - (44.54 * lambda_helper**3)
 
-    VEC200.each do |feature|
-      if feature['properties']['COUNTRY'] == 'CH'
-        poly_points = feature['geometry']['coordinates'][0]
+    result = municipalities.find(
+      :x_min => {'$lte' => y},
+      :x_max => {'$gte' => y},
+      :y_min => {'$lte' => x},
+      :y_max => {'$gte' => x}
+    ).limit(1)
+
+    if result
+      result.each do |municipality|
+        poly_points = municipality["points"]
         ring = LinearRing.from_coordinates(poly_points)
 
-        point = Point.from_coordinates([y, x])
+        point = Point.from_coordinates([y,x])
 
-        if ring.fast_contains?(point)
-          
+        if ring.contains_point?(point)
           return {
-            :GEMNAME => feature['properties']['GEMNAME'],
-            :KANTON => KANTON_ABK[feature['properties']['KANTONSNR'].to_i - 1],
-            :BEZIRKSNR => feature['properties']['BEZIRKSNR'],
-            :GEMFLAECHE => feature['properties']['GEMFLAECHE']
+            :GEMNAME => municipality["properties"]["GEMNAME"],
+            :KANTON => KANTON_ABK[municipality["properties"]["KANTONSNR"].to_i - 1],
+            :BEZIRKSNR => municipality["properties"]["BEZIRKSNR"],
+            :GEMFLAECHE => municipality["properties"]["GEMFLAECHE"]
           }.to_json
         end
       end
-    end
 
-    return {
-      :message => "Coordinates are not within Switzerland."
-    }.to_json
+    else
+      return {
+        :message => "Coordinates are not within Switzerland."
+      }.to_json
+    end    
 
   else
     return {
