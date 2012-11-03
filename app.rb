@@ -51,7 +51,7 @@ get '/lat/:lat/long/:long' do
       :y_max => {'$gte' => x}
     ).limit(1)
 
-    if result
+    if result and result.count > 0
       result.each do |municipality|
         poly_points = municipality["points"]
         ring = LinearRing.from_coordinates(poly_points)
