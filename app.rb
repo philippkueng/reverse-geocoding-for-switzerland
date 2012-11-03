@@ -11,73 +11,76 @@ end
 
 include GeoRuby::SimpleFeatures
 
+class App < Sinatra::Application
 
-# Connecting to MongoDB
-db = URI.parse(ENV['MONGOHQ_URL'] || 'mongodb://@localhost:27017/reversegeocodingforswitzerland')
-db_name = db.path.gsub(/^\//, '')
-db_connection = Mongo::Connection.new(db.host, db.port).db(db_name)
-db_connection.authenticate(db.user, db.password) unless (db.user.nil? || db.user.nil?)
+  # Connecting to MongoDB
+  db = URI.parse(ENV['MONGOHQ_URL'] || 'mongodb://@localhost:27017/reversegeocodingforswitzerland')
+  db_name = db.path.gsub(/^\//, '')
+  db_connection = Mongo::Connection.new(db.host, db.port).db(db_name)
+  db_connection.authenticate(db.user, db.password) unless (db.user.nil? || db.user.nil?)
 
-municipalities = db_connection.collection('municipalities')
-
-
-KANTON_ABK = ["ZH", "BE", "LU", "UR", "SZ", "OW", "NW", "GL", "ZG", "FR", "SO", "BS", "BL", "SH", "AR", "AI", "SG", "GR", "AG", "TG", "TI", "VD", "VS", "NE", "GE", "JU"]
+  municipalities = db_connection.collection('municipalities')
 
 
-# Routes
-get '/' do
-  "Welcome to the Reverse Geocoding for Swiss Municipalities."  
-end
+  KANTON_ABK = ["ZH", "BE", "LU", "UR", "SZ", "OW", "NW", "GL", "ZG", "FR", "SO", "BS", "BL", "SH", "AR", "AI", "SG", "GR", "AG", "TG", "TI", "VD", "VS", "NE", "GE", "JU"]
 
-get '/lat/:lat/long/:long' do
-  content_type 'application/json', :charset => 'utf-8'
 
-  if params[:lat] and params[:long]
+  # Routes
+  get '/' do
+    "Welcome to the Reverse Geocoding for Swiss Municipalities."  
+  end
 
-    phi = params[:lat].to_f
-    lambda = params[:long].to_f
+  get '/lat/:lat/long/:long' do
+    content_type 'application/json', :charset => 'utf-8'
 
-    phi_helper = (phi * 3600 - 169028.66) / 10000
-    lambda_helper = (lambda * 3600 - 26782.5) / 10000
+    if params[:lat] and params[:long]
 
-    x = 1_000_000 + 200147.07 + 308807.95 * phi_helper + 3745.25 * (lambda_helper**2) + (76.63 * phi_helper**2) + (119.79 * phi_helper**3) - (194.56 * lambda_helper**2 * phi_helper)
+      phi = params[:lat].to_f
+      lambda = params[:long].to_f
 
-    y = 2_000_000 + 600072.37 + 211455.93 * lambda_helper - (10938.51 * lambda_helper * phi_helper) - (0.36 * lambda_helper * phi_helper**2) - (44.54 * lambda_helper**3)
+      phi_helper = (phi * 3600 - 169028.66) / 10000
+      lambda_helper = (lambda * 3600 - 26782.5) / 10000
 
-    result = municipalities.find(
-      :x_min => {'$lte' => y},
-      :x_max => {'$gte' => y},
-      :y_min => {'$lte' => x},
-      :y_max => {'$gte' => x}
-    ).limit(1)
+      x = 1_000_000 + 200147.07 + 308807.95 * phi_helper + 3745.25 * (lambda_helper**2) + (76.63 * phi_helper**2) + (119.79 * phi_helper**3) - (194.56 * lambda_helper**2 * phi_helper)
 
-    if result and result.count > 0
-      result.each do |municipality|
-        poly_points = municipality["points"]
-        ring = LinearRing.from_coordinates(poly_points)
+      y = 2_000_000 + 600072.37 + 211455.93 * lambda_helper - (10938.51 * lambda_helper * phi_helper) - (0.36 * lambda_helper * phi_helper**2) - (44.54 * lambda_helper**3)
 
-        point = Point.from_coordinates([y,x])
+      result = municipalities.find(
+        :x_min => {'$lte' => y},
+        :x_max => {'$gte' => y},
+        :y_min => {'$lte' => x},
+        :y_max => {'$gte' => x}
+      ).limit(1)
 
-        if ring.contains_point?(point)
-          return {
-            :GEMNAME => municipality["properties"]["GEMNAME"],
-            :KANTON => KANTON_ABK[municipality["properties"]["KANTONSNR"].to_i - 1],
-            :BEZIRKSNR => municipality["properties"]["BEZIRKSNR"],
-            :GEMFLAECHE => municipality["properties"]["GEMFLAECHE"]
-          }.to_json
+      if result and result.count > 0
+        result.each do |municipality|
+          poly_points = municipality["points"]
+          ring = LinearRing.from_coordinates(poly_points)
+
+          point = Point.from_coordinates([y,x])
+
+          if ring.contains_point?(point)
+            return {
+              :GEMNAME => municipality["properties"]["GEMNAME"],
+              :KANTON => KANTON_ABK[municipality["properties"]["KANTONSNR"].to_i - 1],
+              :BEZIRKSNR => municipality["properties"]["BEZIRKSNR"],
+              :GEMFLAECHE => municipality["properties"]["GEMFLAECHE"]
+            }.to_json
+          end
         end
-      end
+
+      else
+        return {
+          :message => "Coordinates are not within Switzerland."
+        }.to_json
+      end    
 
     else
       return {
-        :message => "Coordinates are not within Switzerland."
-      }.to_json
-    end    
-
-  else
-    return {
-      :error => "Invalid Latitude and Longitude parameters provided."
-    }
+        :error => "Invalid Latitude and Longitude parameters provided."
+      }
+    end
   end
+
 end
 
