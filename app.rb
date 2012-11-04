@@ -69,6 +69,11 @@ class App < Sinatra::Application
           end
         end
 
+        # The point is near a border
+        return {
+          :message => "Coordinates are not within Switzerland."
+        }.to_json
+
       else
         return {
           :message => "Coordinates are not within Switzerland."
