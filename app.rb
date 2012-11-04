@@ -50,7 +50,7 @@ class App < Sinatra::Application
         :x_max => {'$gte' => y},
         :y_min => {'$lte' => x},
         :y_max => {'$gte' => x}
-      ).limit(1)
+      )
 
       if result and result.count > 0
         result.each do |municipality|
